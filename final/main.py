@@ -3,7 +3,7 @@ from helpers import *
 BUFFALO = 0
 AARHUS = 1
 
-side = BUFFALO ##
+side = AARHUS ##
 
 aarhusSpeakers = [137.16, 228.6, 320.04, 411.48, 502.92, 594.36, 685.8, 777.24, 868.68, 960.12, 1051.56, 1143] ## cm
 aarhusSensors = [1.25, 2.5, 3.75, 5, 6.25, 7.5, 8.75, 10, 11.25, 12.5, 13.75, 15] ## cm
@@ -20,6 +20,7 @@ buffaloSensorAngle = 42
 readSen = True
 readSQL = True
 sendSQL = True
+calcAmp = True
 sendUDP = True
 sendLED = False
 
@@ -30,7 +31,7 @@ sqlPort = 80
 
 if (side):
 	host = "arpl-13.ap.buffalo.edu"
-	inserTable = "aarhus"
+	insertTable = "aarhus"
 	selectTable = "buffalo"
 	inch = False
 	tunnelLength = aarhusTunnelLength
@@ -48,7 +49,7 @@ else:
 	speakerPos = buffaloSpeakers
 
 serialInterval = 5 # milliseconds
-sqlInterval = 500 # milliseconds
+sqlInterval = 250 # milliseconds
 
 ser = None
 udp = None
@@ -75,14 +76,15 @@ while True:
 				#if sensorValLocal:
 				#	ampValLocal = calcAmplitudes(sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
 				#	sendToPd(ampValLocal, udp)
+		if db:
 			if timer(sqlInterval, 1):
-				if db:
-					if sendSQL and sensorValLocal:
-						sendToDB(db, insertTable, sensorValLocal)
-					if readSQL:
-						sensorValRemote = readFromDB(db, selectTable)
-						if sensorValRemote:
-							ampValRemote = calcAmplitudes(sensorValRemote, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
+				if sendSQL and sensorValLocal:
+					sendToDB(db, insertTable, sensorValLocal)
+				if readSQL:
+					sensorValRemote = readFromDB(db, selectTable)
+					if calcAmp and sensorValRemote:
+						ampValRemote = calcAmplitudes(sensorValRemote, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
+						if sendUDP and ampValRemote:
 							sendToPd(ampValRemote, udp)
 	except (KeyboardInterrupt, SystemExit):
 		print "\nclosing connections..."

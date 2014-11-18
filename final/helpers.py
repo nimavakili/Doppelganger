@@ -1,9 +1,10 @@
 import os, sys, MySQLdb, serial, serial.tools.list_ports, socket, time, math, copy
 
-TIMER = [0, 0, 0]
-printSen = False
-printSQL = False
+printSen = True
+printSQL = True
 printAmp = True
+
+TIMER = [0, 0, 0]
 EOL = ";\n"
 
 cursor = None
@@ -32,7 +33,7 @@ def readFromDB(db, selectTable):
 	try:
 		#if not cursor:
 		cursor = db.cursor()
-		query = "SELECT s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12 FROM %s WHERE time > SUBDATE(NOW(), INTERVAL 10 SECOND) ORDER BY time DESC LIMIT 1;" % selectTable
+		query = "SELECT s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, time FROM %s WHERE time > SUBDATE(NOW(), INTERVAL 10 SECOND) ORDER BY time DESC LIMIT 1;" % selectTable
 		cursor.execute(query)
 		r = cursor.fetchone()
 		cursor.close()
@@ -40,7 +41,7 @@ def readFromDB(db, selectTable):
 			array = list(r)
 			if printSQL:
 				print array
-			return array
+			return array[0:-1]
 	except MySQLdb.Error, e:
 		print "error %d: %s" % (e.args[0], e.args[1])
 		pass
@@ -238,16 +239,17 @@ def calcAmplitudes(_sensorVal, _sensorPos, _speakerPos, tunnelLength, sensorAngl
 		else:
 			postDistance = speakerPos[i+1] - speakerPos[i]
 
-		if peoplePos[closestPreSensor+1] != -1:
-			speakerToSensor = peoplePos[closestPreSensor+1] - speakerPos[i]
-			if math.fabs(speakerToSensor) < preDistance:
-				speakerLevel[i] = int(max(100 - round(100*math.fabs(speakerToSensor/preDistance)), speakerLevel[i]))
-				if speakerToSensor < 0 and i > 0:
-					speakerLevel[i-1] = int(max(speakerLevel[i-1], round(100*math.fabs(speakerToSensor/preDistance))))
-				elif speakerToSensor > 0 and i < len(speakerPos) - 1:
-					speakerLevel[i+1] = int(round(100*math.fabs(speakerToSensor/postDistance)))
-			elif speakerToSensor == 0:
-				speakerLevel[i] = 100
+		if closestPreSensor < len(speakerPos) - 1:
+			if peoplePos[closestPreSensor+1] != -1:
+				speakerToSensor = peoplePos[closestPreSensor+1] - speakerPos[i]
+				if math.fabs(speakerToSensor) < preDistance:
+					speakerLevel[i] = int(max(100 - round(100*math.fabs(speakerToSensor/preDistance)), speakerLevel[i]))
+					if speakerToSensor < 0 and i > 0:
+						speakerLevel[i-1] = int(max(speakerLevel[i-1], round(100*math.fabs(speakerToSensor/preDistance))))
+					elif speakerToSensor > 0 and i < len(speakerPos) - 1:
+						speakerLevel[i+1] = int(round(100*math.fabs(speakerToSensor/postDistance)))
+				elif speakerToSensor == 0:
+					speakerLevel[i] = 100
 
 	if printAmp:
 		print(speakerLevel)
@@ -262,8 +264,9 @@ def sendToPd(ampVal, udp):
 
 # interval > milliseconds
 def timer(interval, _timer):
+	global TIMER
 	now = time.time()
-	if now > TIMER[_timer] + interval/1000:
+	if now > TIMER[_timer] + interval/1000.0:
 		TIMER[_timer] = now
 		return True
 	return False

@@ -2,8 +2,10 @@
 
 int const sensorCount = 12;
 int const maxThreshold = 170; // max sensor output in cm
-int const numReadings = 40; // number of readings for each smoothed output
-int const mainDelay = 5; // the overal print interval will be mainDelay*numReadings (aproximately)
+int const outputThreshold = 160;
+int const numReadings = 50; // number of readings for each smoothed output
+int const mainDelay = 2; // the overal print interval will be mainDelay*numReadings (aproximately)
+boolean firstRound = true;
 
 int sensorArr[sensorCount][numReadings];
 int ledArr[sensorCount];
@@ -30,12 +32,26 @@ void loop() {
     for (int j = 0; j < sensorCount; j++) { // read all sensors and calculate distance
       int sensorVal = analogRead(j);
       int distance = calcDist(sensorVal*5.0/1023.0f);
+      int preIndex = 0;
+      if (index > 0) {
+        preIndex = index - 1;
+      }
+      else {
+        preIndex = sensorCount - 1;
+      }
+      if (!firstRound) {// && abs(sensorArr[j][preIndex] - distance) > distance/3) {
+        //Serial.println("here");
+        if (index%3 == 0)
+          distance = (distance + 5*sensorArr[j][preIndex])/6;
+      }
       if (distance < maxThreshold) {
         sensorArr[j][index] = distance;
       }
       else {
-        sensorArr[j][index] = 1000000;
+        sensorArr[j][index] = (distance + 1000)/6;
       }
+      if (firstRound)
+        firstRound = false;
     }
     index++;
     if (index >= numReadings) { // average/smooth and print
@@ -48,7 +64,7 @@ void loop() {
         int sensorAve = sensorTot/numReadings;
         //Serial.print(j + 1);
         //Serial.print(": ");
-        if (sensorAve < maxThreshold) {
+        if (sensorAve < outputThreshold) {
           ledVal[j] = int((constrain(int(map(180-sensorAve, 15, 180, 0, 255)), 0, 255) + 9*ledVal[j])/10.0f);
           lastVal[j] = millis();
           Serial.print(sensorAve);

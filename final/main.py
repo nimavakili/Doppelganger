@@ -3,10 +3,10 @@ from helpers import *
 BUFFALO = 0
 AARHUS = 1
 
-side = AARHUS ##
+side = BUFFALO ##
 
-aarhusSpeakers = [137.16, 228.6, 320.04, 411.48, 502.92, 594.36, 685.8, 777.24, 868.68, 960.12, 1051.56, 1143] ## cm
-aarhusSensors = [1.25, 2.5, 3.75, 5, 6.25, 7.5, 8.75, 10, 11.25, 12.5, 13.75, 15] ## cm
+aarhusSensors = [106.1, 215.9, 309.8, 403.7, 504.2, 606.2, 701.0, 801.4, 895.4, 989.2, 1099.0, 1200.8] ## cm
+aarhusSspeakers = [1.25, 2.5, 3.75, 5, 6.25, 7.5, 8.75, 10, 11.25, 12.5, 13.75, 15] ## cm
 aarhusTunnelLength = 1500 ## cm
 aarhusSensorAngle = 45 #
 
@@ -49,7 +49,7 @@ else:
 	speakerPos = buffaloSpeakers
 
 serialInterval = 5 # milliseconds
-sqlInterval = 250 # milliseconds
+sqlInterval = 100 # milliseconds
 
 ser = None
 udp = None
@@ -73,8 +73,8 @@ while True:
 		if ser:
 			if timer(serialInterval, 0):
 				sensorValLocal = readSerial(ser)
-				#if sensorValLocal:
-				#	ampValLocal = calcAmplitudes(sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
+				if sensorValLocal:
+					ampValLocal = calcAmplitudes(sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
 				#	sendToPd(ampValLocal, udp)
 		if db:
 			if timer(sqlInterval, 1):

@@ -1,13 +1,11 @@
 import os, sys, MySQLdb, serial, serial.tools.list_ports, socket, time, math, copy
 
-printSen = True
-printSQL = True
+printSen = False
+printSQL = False
 printAmp = True
 
 TIMER = [0, 0, 0]
 EOL = ";\n"
-
-cursor = None
 
 preSensorAdjVal = None
 lastSensorReading = [0]*12
@@ -103,7 +101,7 @@ def readSerial(ser):
 	return None
 
 # angle > to the horizon
-def calcAmplitudes(_sensorVal, _sensorPos, _speakerPos, tunnelLength, sensorAngle = 45, inch = True):
+def calcAmplitudes(_sensorVal, _sensorPos, _speakerPos, tunnelLength, sensorAngle = 45, inch = False):
 	sensorVal = copy.copy(_sensorVal)
 	sensorPos = copy.copy(_sensorPos)
 	speakerPos = copy.copy(_speakerPos)

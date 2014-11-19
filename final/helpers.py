@@ -198,8 +198,12 @@ def calcAmplitudes(_sensorVal, _sensorPos, _speakerPos, tunnelLength, sensorAngl
 				if 0 < i < len(sensorPos) - 1:
 					if preSensorAdjVal[i-1] == -1 and preSensorAdjVal[i+1] == -1:
 						consistency[i] += 1
-						if consistency[i] < 2:
-							sensorAdjVal[i] = -1
+						if (i != 10):
+							if consistency[i] < 2:
+								sensorAdjVal[i] = -1
+						else:
+							if consistency[i] < 3:
+								sensorAdjVal[i] = -1
 			elif sensorAdjVal[i] == -1 and preSensorAdjVal[i] == -1:
 				consistency[i] = 0
 

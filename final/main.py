@@ -6,14 +6,14 @@ AARHUS = 1
 side = BUFFALO ##
 
 aarhusSensors = [188, 297, 391, 485, 586, 688, 783, 883, 977, 1071, 1181, 1282] ## cm
-aarhusSspeakers = [0, 130, 260, 390, 520, 650, 780, 910, 1040, 1170, 1300, 1430] ## cm
-aarhusTunnelLength = 1500 ## cm
+aarhusSpeakers = [0, 130, 260, 390, 520, 650, 780, 910, 1040, 1170, 1300, 1430] ## cm
+aarhusTunnelLength = 1430 ## cm
 aarhusSensorAngle = 45 #
 
-buffaloSpeakers = [18, 54, 90, 126, 162, 198, 234, 270, 306, 342, 378, 414, 450, 486] # inch
-buffaloSensors = [42, 84, 126, 168, 210, 252, 294, 336, 378, 420, 462, 504] # inch
-buffaloTunnelLength = 504 # inch
-buffaloSensorAngle = 42
+buffaloSpeakers = [45, 137, 228, 320, 411, 502, 594, 686, 777, 869, 960, 1052, 1143, 1234] # cm
+buffaloSensors = [107, 213, 320, 426, 533, 640, 747, 853, 960, 1067, 1173, 1280] # inch
+buffaloTunnelLength = 1280 # inch
+buffaloSensorAngle = 43
 
 ############
 
@@ -35,21 +35,21 @@ if (side):
 	selectTable = "buffalo"
 	inch = False
 	tunnelLength = aarhusTunnelLength
-	sensorPos = aarhusSensors
-	sensorAngle = aarhusSensorAngle
+	sensorPos = buffaloSensors
+	sensorAngle = buffaloSensorAngle
 	speakerPos = aarhusSpeakers
 else:
 	host = "localhost"
 	insertTable = "buffalo"
 	selectTable = "aarhus"
-	inch = True
+	inch = False
 	tunnelLength = buffaloTunnelLength
-	sensorPos = buffaloSensors
-	sensorAngle = buffaloSensorAngle
+	sensorPos = aarhusSensors
+	sensorAngle = aarhusSensorAngle
 	speakerPos = buffaloSpeakers
 
 serialInterval = 5 # milliseconds
-sqlInterval = 100 # milliseconds
+sqlInterval = 200 # milliseconds
 
 ser = None
 udp = None
@@ -73,8 +73,8 @@ while True:
 		if ser:
 			if timer(serialInterval, 0):
 				sensorValLocal = readSerial(ser)
-				if sensorValLocal:
-					ampValLocal = calcAmplitudes(sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
+				#if sensorValLocal:
+				#	ampValLocal = calcAmplitudes(sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
 				#	sendToPd(ampValLocal, udp)
 		if db:
 			if timer(sqlInterval, 1):

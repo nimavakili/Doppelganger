@@ -48,7 +48,7 @@ else:
 	sensorAngle = aarhusSensorAngle
 	speakerPos = buffaloSpeakers
 
-serialInterval = 5 # milliseconds
+serialInterval = 100 # milliseconds
 sqlInterval = 200 # milliseconds
 
 ser = None
@@ -71,11 +71,11 @@ if readSQL or sendSQL:
 while True:
 	try:
 		if ser:
-			if timer(serialInterval, 0):
-				sensorValLocal = readSerial(ser)
-				#if sensorValLocal:
-				#	ampValLocal = calcAmplitudes(sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
-				#	sendToPd(ampValLocal, udp)
+			#if timer(serialInterval, 0):
+			sensorValLocal = readSerial(ser)
+			#if sensorValLocal:
+			#	ampValLocal = calcAmplitudes(sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
+			#	sendToPd(ampValLocal, udp)
 		if db:
 			if timer(sqlInterval, 1):
 				if sendSQL and sensorValLocal:

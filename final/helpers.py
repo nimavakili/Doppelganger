@@ -1,8 +1,8 @@
 import os, sys, MySQLdb, serial, serial.tools.list_ports, socket, time, math, copy
 
-printSen = False
+printSen = True
 printSQL = False
-printAmp = True
+printAmp = False
 
 TIMER = [0, 0, 0]
 EOL = ";\n"

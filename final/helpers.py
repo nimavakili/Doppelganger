@@ -12,6 +12,9 @@ lastSensorReading = [0]*12
 consistency = [0]*12
 movement = [0]*12
 angle = 0
+mode = 1
+firstFlag = False
+secondFlag = False
 
 def connectSQL(_host, _port):
 	try:
@@ -204,7 +207,7 @@ def calcAmplitudes(_sensorVal, _sensorPos, _speakerPos, tunnelLength, sensorAngl
 							if consistency[i] < 2:
 								sensorAdjVal[i] = -1
 						else:
-							if consistency[i] < 3:
+							if consistency[i] < 4:
 								sensorAdjVal[i] = -1
 			elif sensorAdjVal[i] == -1 and preSensorAdjVal[i] == -1:
 				consistency[i] = 0
@@ -262,12 +265,25 @@ def calcAmplitudes(_sensorVal, _sensorPos, _speakerPos, tunnelLength, sensorAngl
 
 def sendToPd(ampVal, udp):
 	msg = ""
-	if type(ampVal) == type([]):
+	if ampVal:
 		for val in ampVal:
 			msg += str(val) + " "
-	else:
-		msg = str(ampVal)
-	udp.send(msg.strip() + EOL) # make it FUDI
+		udp.send(msg.strip() + EOL) # make it FUDI
+
+def setPdMode(_mode, udp):
+	global mode
+	if mode != _mode:
+		mode = _mode
+		if mode == 1:
+			print "PD mode changed to 'Remote Footsteps'"
+			msg = "1 0 0"
+		elif mode == 2:
+			print "PD mode changed to 'Local Footsteps'"
+			msg = "0 1 0"
+		elif mode == 3:
+			print "PD mode changed to 'Local Sound Route'"
+			msg = "0 0 1"
+		udp.send(msg.strip() + EOL) # make it FUDI
 
 # interval > milliseconds
 def timer(interval, _timer):
@@ -292,9 +308,16 @@ def panSpeakers(speakerPos, tunnelLength, sharpness):
 	return ampVal
 
 def detectPresence(ampVal):
+	global firstFlag
+	global secondFlag
 	if ampVal:
 		for amp in ampVal:
 			if (amp > 0):
-				return True
+				if firstFlag:
+					secondFlag = True
+					return True
+				firstFlag = True
+	firstFlag = False
+	secondFlag = False
 	return False
 

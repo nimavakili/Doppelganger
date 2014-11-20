@@ -43,7 +43,7 @@ if (side):
 else:
 	host = "localhost"
 	insertTable = "buffalo"
-	selectTable = "buffalo"
+	selectTable = "aarhus"
 	inch = False
 	tunnelLength = buffaloTunnelLength
 	sensorPos = aarhusSensors
@@ -54,6 +54,7 @@ serialInterval = 100 # milliseconds
 sqlInterval = 200 # milliseconds
 panInterval = 20
 
+pdMode = 1
 ser = None
 udp = None
 udp2 = None
@@ -70,6 +71,7 @@ if readSen:
 if sendUDP:
 	udp = connectUDP(pdSocket)
 	udp2 = connectUDP(pdSocket2)
+	setPdMode(1, udp2)
 
 if readSQL or sendSQL:
 	db = connectSQL(host, sqlPort)
@@ -81,7 +83,8 @@ while True:
 				sensorValLocal = readSerial(ser)
 				if sensorValLocal:
 					ampValLocal = calcAmplitudes(sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
-				#	sendToPd(ampValLocal, udp)
+					if pdMode == 2:
+						sendToPd(ampValLocal, udp)
 		if db:
 			if timer(sqlInterval, 1):
 				if sendSQL and sensorValLocal:
@@ -93,15 +96,31 @@ while True:
 					if calcAmp and sensorValRemote:
 						ampValRemote = calcAmplitudes(sensorValRemote, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
 						if sendUDP:
-							if pan and not detectPresence(ampValRemote) and ampValPan:
-									sendToPd(0, udp2)
-									sendToPd(ampValPan, udp)
-							elif ampValRemote:
-								sendToPd(1, udp2)
+							if detectPresence(ampValRemote):
+								pdMode = 1
+								setPdMode(1, udp2) # RemoteFootSteps
 								sendToPd(ampValRemote, udp)
+							else:
+								if detectPresence(ampValLocal):
+									pdMode = 2
+									setPdMode(2, udp2) # LocalFootSteps
+									#sendToPd(ampValLocal, udp)
+								elif pan:
+									pdMode = 3
+									setPdMode(3, udp2) # LocalSoundRoute
+									#sendToPd(ampValPan, udp)
+		else:
+			if timer(sqlInterval, 1):
+				if sendUDP:
+					if detectPresence(ampValLocal):
+						setPdMode(2, udp2) # LocalFootSteps
+					elif pan:
+						setPdMode(3, udp2) # LocalSoundRoute
 		if pan:
 			if timer(panInterval, 2):
 				ampValPan = panSpeakers(speakerPos, tunnelLength, 6)
+				if sendUDP and pdMode == 3:
+					sendToPd(ampValPan, udp)
 	except (KeyboardInterrupt, SystemExit):
 		print "\nclosing connections..."
 		if ser:

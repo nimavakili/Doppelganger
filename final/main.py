@@ -22,11 +22,13 @@ readSQL = True
 sendSQL = True
 calcAmp = True
 sendUDP = True
+pan = True
 sendLED = False
 
 serialPort = 0 ##
 serialBaudrate = 115200
 pdSocket = 3001
+pdSocket2 = 4001
 sqlPort = 80
 
 if (side):
@@ -41,7 +43,7 @@ if (side):
 else:
 	host = "localhost"
 	insertTable = "buffalo"
-	selectTable = "aarhus"
+	selectTable = "buffalo"
 	inch = False
 	tunnelLength = buffaloTunnelLength
 	sensorPos = aarhusSensors
@@ -50,10 +52,13 @@ else:
 
 serialInterval = 100 # milliseconds
 sqlInterval = 200 # milliseconds
+panInterval = 20
 
 ser = None
 udp = None
+udp2 = None
 db = None
+ampValPan = None
 sensorValLocal = None
 sensorValRemote = None
 ampValLocal = None
@@ -64,6 +69,7 @@ if readSen:
 
 if sendUDP:
 	udp = connectUDP(pdSocket)
+	udp2 = connectUDP(pdSocket2)
 
 if readSQL or sendSQL:
 	db = connectSQL(host, sqlPort)
@@ -71,21 +77,31 @@ if readSQL or sendSQL:
 while True:
 	try:
 		if ser:
-			#if timer(serialInterval, 0):
-			sensorValLocal = readSerial(ser)
-			#if sensorValLocal:
-			#	ampValLocal = calcAmplitudes(sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
-			#	sendToPd(ampValLocal, udp)
+			if timer(serialInterval, 0):
+				sensorValLocal = readSerial(ser)
+				if sensorValLocal:
+					ampValLocal = calcAmplitudes(sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
+				#	sendToPd(ampValLocal, udp)
 		if db:
 			if timer(sqlInterval, 1):
 				if sendSQL and sensorValLocal:
 					sendToDB(db, insertTable, sensorValLocal)
 				if readSQL:
 					sensorValRemote = readFromDB(db, selectTable)
+					if sensorValRemote:
+						clearTable(db, selectTable)
 					if calcAmp and sensorValRemote:
 						ampValRemote = calcAmplitudes(sensorValRemote, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
-						if sendUDP and ampValRemote:
-							sendToPd(ampValRemote, udp)
+						if sendUDP:
+							if pan and not detectPresence(ampValRemote) and ampValPan:
+									sendToPd(0, udp2)
+									sendToPd(ampValPan, udp)
+							elif ampValRemote:
+								sendToPd(1, udp2)
+								sendToPd(ampValRemote, udp)
+		if pan:
+			if timer(panInterval, 2):
+				ampValPan = panSpeakers(speakerPos, tunnelLength, 6)
 	except (KeyboardInterrupt, SystemExit):
 		print "\nclosing connections..."
 		if ser:

@@ -1,8 +1,8 @@
 import os, sys, MySQLdb, serial, serial.tools.list_ports, socket, time, math, copy
 
-printSen = True
+printSen = False
 printSQL = False
-printAmp = False
+printAmp = True
 
 TIMER = [0, 0, 0]
 EOL = ";\n"
@@ -11,6 +11,7 @@ preSensorAdjVal = None
 lastSensorReading = [0]*12
 consistency = [0]*12
 movement = [0]*12
+angle = 0
 
 def connectSQL(_host, _port):
 	try:
@@ -27,9 +28,7 @@ def connectSQL(_host, _port):
 	return None
 
 def readFromDB(db, selectTable):
-	#global cursor
 	try:
-		#if not cursor:
 		cursor = db.cursor()
 		query = "SELECT s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, time FROM %s WHERE time > SUBDATE(NOW(), INTERVAL 10 SECOND) ORDER BY time DESC LIMIT 1;" % selectTable
 		cursor.execute(query)
@@ -44,17 +43,20 @@ def readFromDB(db, selectTable):
 		print "error %d: %s" % (e.args[0], e.args[1])
 		pass
 
+def clearTable(db, table):
+		cursor = db.cursor()
+		query = "TRUNCATE " + table
+		cursor.execute(query)
+		db.commit()
+
 def sendToDB(db, insertTable, array):
-	#global cursor
 	try:
-		#if not cursor:
 		cursor = db.cursor()
 		query = "INSERT INTO %s (s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, time) VALUES (" % insertTable
 		for index, val in enumerate(array):
 			query += str(val)
 			query += ", "
 		query += "NOW() );"
-		#print query
 		cursor.execute(query)
 		db.commit()
 		cursor.close()
@@ -260,8 +262,11 @@ def calcAmplitudes(_sensorVal, _sensorPos, _speakerPos, tunnelLength, sensorAngl
 
 def sendToPd(ampVal, udp):
 	msg = ""
-	for val in ampVal:
-		msg += str(val) + " "
+	if type(ampVal) == type([]):
+		for val in ampVal:
+			msg += str(val) + " "
+	else:
+		msg = str(ampVal)
 	udp.send(msg.strip() + EOL) # make it FUDI
 
 # interval > milliseconds
@@ -272,3 +277,24 @@ def timer(interval, _timer):
 		TIMER[_timer] = now
 		return True
 	return False
+
+def panSpeakers(speakerPos, tunnelLength, sharpness):
+	global angle
+	angle += 1
+	ampVal = [0]*len(speakerPos)
+	for index, pos in enumerate(speakerPos):
+		relPos = 360*pos/float(tunnelLength)
+		amp = max(math.cos(math.radians(angle - relPos)), 0)
+		amp = math.pow(amp, sharpness)*100
+		ampVal[index] = int(amp)
+	if angle > 360:
+		angle = 0
+	return ampVal
+
+def detectPresence(ampVal):
+	if ampVal:
+		for amp in ampVal:
+			if (amp > 0):
+				return True
+	return False
+

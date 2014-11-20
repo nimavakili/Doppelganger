@@ -37,18 +37,26 @@ if (side):
 	selectTable = "buffalo"
 	inch = False
 	tunnelLength = aarhusTunnelLength
-	sensorPos = buffaloSensors
-	sensorAngle = buffaloSensorAngle
+	sensorPos = aarhusSensors
+	sensorAngle = aarhusSensorAngle
 	speakerPos = aarhusSpeakers
+	rTunnelLength = buffaloTunnelLength
+	rSensorPos = buffaloSensors
+	rSensorAngle = buffaloSensorAngle
+	rSpeakerPos = buffaloSpeakers
 else:
 	host = "localhost"
 	insertTable = "buffalo"
 	selectTable = "aarhus"
 	inch = False
 	tunnelLength = buffaloTunnelLength
-	sensorPos = aarhusSensors
-	sensorAngle = aarhusSensorAngle
+	sensorPos = buffaloSensors
+	sensorAngle = buffaloSensorAngle
 	speakerPos = buffaloSpeakers
+	rTunnelLength = aarhusTunnelLength
+	rSensorPos = aarhusSensors
+	rSensorAngle = aarhusSensorAngle
+	rSpeakerPos = aarhusSpeakers
 
 serialInterval = 100 # milliseconds
 sqlInterval = 200 # milliseconds
@@ -66,7 +74,7 @@ ampValLocal = None
 ampValRemote = None
 
 if readSen:
-	ser = connectSerial(serialPort, serialBaudrate, sqlInterval)
+	ser = connectSerial(serialPort, serialBaudrate, min(serialInterval, panInterval)/1000.0)
 
 if sendUDP:
 	udp = connectUDP(pdSocket)
@@ -79,12 +87,12 @@ if readSQL or sendSQL:
 while True:
 	try:
 		if ser:
-			if timer(serialInterval, 0):
-				sensorValLocal = readSerial(ser)
-				if sensorValLocal:
-					ampValLocal = calcAmplitudes(sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
-					if pdMode == 2:
-						sendToPd(ampValLocal, udp)
+			#if timer(serialInterval, 0):
+			sensorValLocal = readSerial(ser)
+			if sensorValLocal:
+				ampValLocal = calcAmplitudes(sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
+				if pdMode == 2:
+					sendToPd(ampValLocal, udp, mirror = False)
 		if db:
 			if timer(sqlInterval, 1):
 				if sendSQL and sensorValLocal:
@@ -113,8 +121,10 @@ while True:
 			if timer(sqlInterval, 1):
 				if sendUDP:
 					if detectPresence(ampValLocal):
+						pdMode = 2
 						setPdMode(2, udp2) # LocalFootSteps
 					elif pan:
+						pdMode = 3
 						setPdMode(3, udp2) # LocalSoundRoute
 		if pan:
 			if timer(panInterval, 2):

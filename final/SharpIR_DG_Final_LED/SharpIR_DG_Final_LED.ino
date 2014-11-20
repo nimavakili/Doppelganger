@@ -1,7 +1,7 @@
 // serial baudrate: 115200
 
 int const sensorCount = 12;
-int const maxThreshold = 170; // max sensor output in cm
+int const maxThreshold = 160; // max sensor output in cm
 int const numReadings = 50; // number of readings for each smoothed output
 int const mainDelay = 2; // the overal print interval will be mainDelay*numReadings (aproximately)
 
@@ -52,7 +52,7 @@ void loop() {
         int sensorAve = sensorTot/numReadings;
         //Serial.print(j + 1);
         //Serial.print(": ");
-        if (sensorAve < maxThreshold) {
+        if ((sensorAve < maxThreshold && j != 10) || (sensorAve < 140)) {
           ledVal[j] = int((constrain(int(map(180-sensorAve, 15, 180, 0, 255)), 0, 255) + 9*ledVal[j])/10.0f);
           lastVal[j] = millis();
           Serial.print(sensorAve);

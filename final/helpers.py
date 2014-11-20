@@ -1,8 +1,8 @@
 import os, sys, MySQLdb, serial, serial.tools.list_ports, socket, time, math, copy
 
-printSen = False
+printSen = True
 printSQL = False
-printAmp = True
+printAmp = False
 
 TIMER = [0, 0, 0]
 EOL = ";\n"
@@ -207,7 +207,7 @@ def calcAmplitudes(_sensorVal, _sensorPos, _speakerPos, tunnelLength, sensorAngl
 							if consistency[i] < 2:
 								sensorAdjVal[i] = -1
 						else:
-							if consistency[i] < 4:
+							if consistency[i] < 3:
 								sensorAdjVal[i] = -1
 			elif sensorAdjVal[i] == -1 and preSensorAdjVal[i] == -1:
 				consistency[i] = 0
@@ -263,11 +263,14 @@ def calcAmplitudes(_sensorVal, _sensorPos, _speakerPos, tunnelLength, sensorAngl
 
 	return speakerLevel
 
-def sendToPd(ampVal, udp):
+def sendToPd(ampVal, udp, mirror = False):
 	msg = ""
 	if ampVal:
 		for val in ampVal:
-			msg += str(val) + " "
+			if mirror:
+				msg = str(val) + " " + msg
+			else:
+				msg += str(val) + " "
 		udp.send(msg.strip() + EOL) # make it FUDI
 
 def setPdMode(_mode, udp):

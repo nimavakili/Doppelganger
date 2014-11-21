@@ -7,10 +7,10 @@ import MySQLdb, serial, serial.tools.list_ports, socket, time, math, copy
 #TIMER = [0, 0, 0]
 EOL = ";\n"
 
-preSensorAdjVal = [None, None]
-lastSensorReading = [[0]*12, [0]*12]
-consistency = [[0]*12, [0]*12]
-movement = [[0]*12, [0]*12]
+preSensorAdjVal = [None]*5
+lastSensorReading = [[0]*12]*5
+consistency = [[0]*12]*5
+movement = [[0]*12]*5
 angle = 0
 mode = 0
 firstFlag = [False, False]
@@ -41,7 +41,7 @@ def readFromDB(db, selectTable, printSQL = False):
 		if r:
 			array = list(r)
 			if printSQL:
-				print array
+				print "SQL " + selectTable + " table: " + array
 			return array[0:-1]
 	except MySQLdb.Error, e:
 		print "error %d: %s" % (e.args[0], e.args[1])
@@ -69,13 +69,14 @@ def sendToDB(db, insertTable, array):
 		print "error %d: %s" % (e.args[0], e.args[1])
 		pass
 
-def connectSerial(portNo, _baudrate, _timeout):
+def connectSerial(portNo, _baudrate, _timeout, _writeTimeout):
 	ports = serial.tools.list_ports.comports()
 	try:
 		ser = serial.Serial(
 			port = ports[portNo][0].replace("cu", "tty"),
 			baudrate = _baudrate,
-			timeout=_timeout)
+			timeout = _timeout,
+			writeTimeout = _writeTimeout)
 		ser.flush()
 		print "connected to the serial port " + ports[portNo][0].replace("cu", "tty")
 		return ser
@@ -99,15 +100,32 @@ def connectUDP(port, host="127.0.0.1"):
 def readSerial(ser, printSen = False):
 	line = ser.readline().strip()
 	ser.flushInput()
-	if len(line) > 0:
+	if len(line) > 0 and line[0] != 'L':
 		arr = line.split(",")
 		if len(arr) == 12:
+			#try:
 			for index, val in enumerate(arr):
 				arr[index] = int(val)
 			if printSen:
-				print arr
+				print "Raw sensor: " + ','.join(map(str, arr))
 			return arr
+			#except:
+			#	if printSen:
+			#		print "error serial read: " + line
+	if printSen:
+		print "serial non-sensor-data: " + line
 	return None
+
+def writeSerial(ampVal, ser):
+	#ser.flushOutput()
+	line = ""
+	for i in range(len(ampVal)):
+		line += str(ampVal[i])
+		if i != len(ampVal) - 1:
+			line += ','
+		else:
+			line += '\n'
+	ser.write(line)
 
 # angle > to the horizon
 def calcAmplitudes(side, _sensorVal, _sensorPos, _speakerPos, tunnelLength, sensorAngle, firstSen, lastSen, mirror = False, printAmp = False, inch = False):
@@ -139,6 +157,8 @@ def calcAmplitudes(side, _sensorVal, _sensorPos, _speakerPos, tunnelLength, sens
 			sensorPos[i] = sensorPos[i]*2.54
 		if firstSen != None and lastSen != None:
 			sensorPos[i] = sensorPos[i] - offset
+		if not sensorVal:
+			return None
 		if sensorVal[i] != -1:
 			sensorVal[i] = math.cos(math.radians(sensorAngle))*sensorVal[i]
 		sensorAdjVal[i] = -1;
@@ -288,7 +308,20 @@ def calcAmplitudes(side, _sensorVal, _sensorPos, _speakerPos, tunnelLength, sens
 					speakerLevel[i] = 100
 
 	if printAmp:
-		print(speakerLevel)
+		if side == 1:
+			LR = "Remote "
+		elif side == 0:
+			LR = "Local "
+		elif side == 2:
+			LR = "Local mirrored "
+		elif side == 3:
+			if mirror:
+				LR = "Local LED mirrored "
+			else:
+				LR = "Local LED "
+		elif side == 4:
+			LR = "Remote LED "
+		print LR + "amplitude: " + ','.join(map(str, speakerLevel))
 
 	return [speakerLevel, peoplePos]
 
@@ -310,7 +343,7 @@ def setPdMode(_mode, udp):
 			print "PD mode changed to 'Remote FootSteps (Interaction)'"
 			msg = "1 0 0"
 		elif mode == 2:
-			print "PD mode changed to 'Local FootSteps (Follow)'"
+			print "PD mode changed to 'Local FootSteps (Follow/Mirror)'"
 			msg = "0 1 0"
 		elif mode == 3:
 			print "PD mode changed to 'Local SoundRoute (Panning)'"
@@ -356,13 +389,11 @@ def detectPresence(ampVal, side):
 
 def calcProximity(peoplePosLocal, peoplePosRemote, tunnelLength):
 	dist = 10000
-	#print peoplePosLocal
-	#print peoplePosRemote
 	for i in range(len(peoplePosLocal)):
 		if peoplePosLocal[i] != -1:
 			for j in range(len(peoplePosRemote)):
 				if peoplePosRemote[j] != -1:
 					dist = min(dist, math.fabs(peoplePosLocal[i] - peoplePosRemote[j]))
 	if dist != 10000:
-		return max(100 - int(100*dist/(tunnelLength/2)), 0)
+		return max(100 - int(100*dist/(tunnelLength/4)), 0)
 	return None

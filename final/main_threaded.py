@@ -26,7 +26,9 @@ calcAmp = True
 sendUDP = True
 pan = True
 follow = True
+mirror = True
 sendLED = False
+debug = False
 
 serialPort = 0 ##
 serialBaudrate = 115200
@@ -65,7 +67,7 @@ else:
 
 serialInterval = 0 # milliseconds (0 > as fast as it receives)
 sqlInterval = 200 # milliseconds
-panInterval = 20 ## milliseconds (per angle change)
+panInterval = 40 ## milliseconds (per angle change)
 
 pdMode = 1
 ser = None
@@ -79,39 +81,63 @@ peoplePosLocal = None
 ampValLocal = None
 localPresence = False
 remotePresence = False
+ledFlag = False
+ampValLocalLed = None
+ampValRemoteLed = None
 
 def serialTimer():
-	global sensorValLocal, ampValLocal, peoplePosLocal, pdMode, localPresence
-	sensorValLocal = readSerial(ser, printSen=False)
+	global sensorValLocal, ampValLocal, peoplePosLocal, pdMode, localPresence, ampValLocalLed
+	sensorValLocal = readSerial(ser, printSen=debug)
 	if calcAmp and sensorValLocal:
-		calc = calcAmplitudes(0, sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, firstSensorIdeal, lastSensorIdeal, mirror=False, printAmp=False)
-		ampValLocal = calc[0]
-		peoplePosLocal = calc[1]
-		if udp and udp2:
+		calc = calcAmplitudes(0, sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, firstSensorIdeal, lastSensorIdeal, mirror=False, printAmp=debug)
+		calcMirror = calcAmplitudes(2, sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, firstSensorIdeal, lastSensorIdeal, mirror=True, printAmp=debug)
+		if calc:
+			ampValLocal = calc[0]
+			peoplePosLocal = calc[1]
+		if calcMirror:
+			ampValLocalMirror = calcMirror[0]
+			peoplePosLocalMirror = calcMirror[1]
+		if sendLED:
+			if mirror:
+				calcLed = calcAmplitudes(3, sensorValLocal, sensorPos, sensorPos, tunnelLength, sensorAngle, firstSensorIdeal, lastSensorIdeal, mirror=True, printAmp=debug)
+			else:
+				calcLed = calcAmplitudes(3, sensorValLocal, sensorPos, sensorPos, tunnelLength, sensorAngle, firstSensorIdeal, lastSensorIdeal, mirror=False, printAmp=debug)
+			if calcLed:
+				ampValLocalLed = calcLed[0]
+		if udp and udp2 and follow:
 			if not remotePresence or not db:
 				if detectPresence(ampValLocal, 0):
 					localPresence = True
 					pdMode = 2
 					setPdMode(2, udp2) # LocalFootSteps (Follow)
-					sendToPd(ampValLocal + [0], udp)
+					prox = calcProximity(peoplePosLocal, peoplePosLocalMirror, tunnelLength)
+					if mirror:
+						sendToPd(ampValLocalMirror + [prox], udp)
+					else:
+						sendToPd(ampValLocal + [prox], udp)
+					if ampValLocalLed:
+						writeSerial(ampValLocalLed, ser)
 				else:
 					localPresence = False
 	Timer(serialInterval/1000.0, serialTimer).start()
 
 def sqlTimer():
-	global sensorValLocal, sensorValRemote, remotePresence, pdMode
+	global sensorValLocal, sensorValRemote, remotePresence, pdMode, ampValRemoteLed
 	if sendSQL and sensorValLocal:
 		sendToDB(db, insertTable, sensorValLocal)
 		sensorValLocal = None
 	if readSQL:
-		sensorValRemote = readFromDB(db, selectTable, printSQL=False)
+		sensorValRemote = readFromDB(db, selectTable, printSQL=debug)
 		if sensorValRemote:
 			clearTable(db, selectTable)
 			if calcAmp:
 				#calc = calcAmplitudes(1, sensorValRemote, sensorPos, speakerPos, tunnelLength, sensorAngle, firstSensorIdeal, lastSensorIdeal, mirror = True, printAmp = False)
-				calc = calcAmplitudes(1, sensorValRemote, rSensorPos, speakerPos, tunnelLength, rSensorAngle, firstSensorIdeal, lastSensorIdeal, mirror=False, printAmp=False)
+				calc = calcAmplitudes(1, sensorValRemote, rSensorPos, speakerPos, tunnelLength, rSensorAngle, firstSensorIdeal, lastSensorIdeal, mirror=False, printAmp=debug)
 				ampValRemote = calc[0]
 				peoplePosRemote = calc[1]
+				if sendLED:
+					calcLed = calcAmplitudes(4, sensorValRemote, rSensorPos, sensorPos, tunnelLength, rSensorAngle, firstSensorIdeal, lastSensorIdeal, mirror=False, printAmp=debug)
+					ampValRemoteLed = calcLed[0]
 				if udp and udp2:
 					if detectPresence(ampValRemote, 1):
 						remotePresence = True
@@ -122,29 +148,36 @@ def sqlTimer():
 							sendToPd(ampValRemote + [prox], udp)
 						else:
 							sendToPd(ampValRemote + [0], udp)
+						if ampValRemoteLed:
+							writeSerial(ampValRemoteLed, ser)
 					else:
 						remotePresence = False
 	Timer(sqlInterval/1000.0, sqlTimer).start()
 
 def panTimer():
-	global pdMode
+	global pdMode, ser, ledFlag
 	if not remotePresence and not localPresence:
 		pdMode = 3
 		setPdMode(3, udp2) # LocalSoundRoute (SoundFlower)
 		ampValPan = panSpeakers(speakerPos, tunnelLength, 6)
 		sendToPd(ampValPan + [0], udp)
+		if ser and sendLED and ledFlag:
+			writeSerial(ampValPan[1:-1], ser)
+			ledFlag = False
+		else:
+			ledFlag = True
 	Timer(panInterval/1000.0, panTimer).start()
 
 def main(argv):
-	global side, udp, udp2, db, ser
+	global side, udp, udp2, db, ser, serialPort, pan, panInterval, follow, sendLED, sendSQL, readSQL, readSen, sqlInterval, sendUDP, debug
 	try:
-		opts, args = getopt.getopt(argv,"hs:",["help", "side="])
+		opts, args = getopt.getopt(argv,"hs:",["help", "side=", "serial-port=", "no-pan", "pan-interval=", "no-follow", "no-sql-read", "no-sql-write", "sql-interval=", "no-serial", "no-udp", "debug", "led"])
 	except getopt.GetoptError:
 		print "invalid arguments! Run with -h to see available options."
 		sys.exit(2)
 	for opt, arg in opts:
 		if opt in ("-h", "--help"):
-			print "main.py -s <side> [--serial-port=<portNumber> --no-pan --pan-interval=<milliseconds> --no-follow --no-sql-read --no-sql-write --sql-interval=<milliseconds> --no-serial --no-udp --debug]"
+			print "main.py [-s <side> --serial-port=<portNumber> --no-pan --pan-interval=<milliseconds> --no-follow --no-sql-read --no-sql-write --sql-interval=<milliseconds> --no-serial --no-udp --debug --led]"
 			sys.exit()
 		elif opt in ("-s", "--side"):
 			if arg.lower() == "aarhus":
@@ -152,6 +185,28 @@ def main(argv):
 				print "running for Aarhus side..."
 			else:
 				print "running for Buffalo side..."
+		elif opt == "--serial-port":
+			serialPort = int(arg)
+		elif opt == "--no-pan":
+			pan = False
+		elif opt == "--pan-interval":
+			panInterval = int(arg)
+		elif opt == "--no-follow":
+			follow = False
+		elif opt == "--no-sql-read":
+			readSQL = False
+		elif opt == "--no-sql-write":
+			sendSQL = False
+		elif opt == "--sql-interval":
+			sqlInterval = int(arg)
+		elif opt == "--no-serial":
+			readSen = False
+		elif opt == "--no-udp":
+			sendUDP = False
+		elif opt == "--led":
+			sendLED = True
+		elif opt == "--debug":
+			debug = True
 
 	if readSQL or sendSQL:
 		db = connectSQL(host, sqlPort)
@@ -161,7 +216,7 @@ def main(argv):
 			Timer(0, sqlTimer).start()
 
 	if readSen:
-		ser = connectSerial(serialPort, serialBaudrate, 1) # min(serialInterval, panInterval)/1000.0)
+		ser = connectSerial(serialPort, serialBaudrate, 1, 1) # min(serialInterval, panInterval)/1000.0)
 		if ser:
 			Timer(0.5, serialTimer).start()
 
@@ -174,16 +229,3 @@ def main(argv):
 
 if __name__ == "__main__":
 	main(sys.argv[1:])
-
-
-"""
-	except (KeyboardInterrupt, SystemExit):
-		print "\nclosing connections..."
-		if ser:
-			ser.close()
-		if udp:
-			udp.close()
-		if db:
-			db.close()
-		raise
-"""

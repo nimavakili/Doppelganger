@@ -14,7 +14,7 @@
 #X floatatom 422 80 5 0 0 0 - - -;
 #X floatatom 459 80 5 0 0 0 - - -;
 #X floatatom 496 80 5 0 0 0 - - -;
-#X obj 838 55 tgl 25 0 empty empty DSP 3 12 1 9 -24198 -1 -1 0 1;
+#X obj 838 55 tgl 25 0 empty empty DSP 3 12 1 9 -24198 -1 -1 1 1;
 #X msg 838 88 \; pd dsp \$1;
 #X obj 781 58 vsl 15 128 0.01 1 1 1 empty empty empty 0 -9 0 10 -262144
 -1 -1 9100 0;
@@ -79,7 +79,7 @@
 #X obj 905 238 pack;
 #X obj 764 16 *~;
 #X obj 605 369 vsl 15 128 0.01 1 1 1 empty empty empty 0 -9 0 10 -262144
--1 -1 7500 0;
+-1 -1 6900 0;
 #X obj 624 294 s~ output;
 #X obj 311 364 channel_process;
 #X obj 200 293 channel_process;
@@ -106,7 +106,7 @@
 #X obj 566 322 netreceive 5001 1;
 #X floatatom 566 351 5 0 0 0 - - -;
 #X obj 15 39 unpack 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
-#X floatatom 478 123 5 0 0 0 - - -;
+#X floatatom 483 119 5 0 0 0 - - -;
 #N canvas 320 184 450 300 bass_process 0;
 #X obj 18 28 inlet;
 #X floatatom 18 53 5 0 0 0 - - -;

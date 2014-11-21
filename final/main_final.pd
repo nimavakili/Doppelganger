@@ -14,7 +14,7 @@
 #X floatatom 422 80 5 0 0 0 - - -;
 #X floatatom 459 80 5 0 0 0 - - -;
 #X floatatom 496 80 5 0 0 0 - - -;
-#X obj 838 55 tgl 25 0 empty empty DSP 3 12 1 9 -24198 -1 -1 1 1;
+#X obj 838 55 tgl 25 0 empty empty DSP 3 12 1 9 -24198 -1 -1 0 1;
 #X msg 838 88 \; pd dsp \$1;
 #X obj 801 59 vsl 15 128 0.01 1 1 1 empty empty empty 0 -9 0 10 -262144
 -1 -1 9100 0;

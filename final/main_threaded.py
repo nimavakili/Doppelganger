@@ -123,36 +123,38 @@ def serialTimer():
 
 def sqlTimer():
 	global sensorValLocal, sensorValRemote, remotePresence, pdMode, ampValRemoteLed
-	if sendSQL and sensorValLocal:
-		sendToDB(db, insertTable, sensorValLocal)
-		sensorValLocal = None
-	if readSQL:
-		sensorValRemote = readFromDB(db, selectTable, printSQL=debug)
-		if sensorValRemote:
-			clearTable(db, selectTable)
-			if calcAmp:
-				#calc = calcAmplitudes(1, sensorValRemote, sensorPos, speakerPos, tunnelLength, sensorAngle, firstSensorIdeal, lastSensorIdeal, mirror = True, printAmp = False)
-				calc = calcAmplitudes(1, sensorValRemote, rSensorPos, speakerPos, tunnelLength, rSensorAngle, firstSensorIdeal, lastSensorIdeal, mirror=False, printAmp=debug)
-				ampValRemote = calc[0]
-				peoplePosRemote = calc[1]
-				if sendLED:
-					calcLed = calcAmplitudes(4, sensorValRemote, rSensorPos, sensorPos, tunnelLength, rSensorAngle, firstSensorIdeal, lastSensorIdeal, mirror=False, printAmp=debug)
-					ampValRemoteLed = calcLed[0]
-				if udp and udp2:
-					if detectPresence(ampValRemote, 1):
-						remotePresence = True
-						pdMode = 1
-						setPdMode(1, udp2) # RemoteFootSteps
-						prox = calcProximity(peoplePosLocal, peoplePosRemote, tunnelLength)
-						if prox:
-							sendToPd(ampValRemote + [prox], udp)
+	if timer(sqlInterval, 0):
+		if sendSQL and sensorValLocal:
+			sendToDB(db, insertTable, sensorValLocal)
+			sensorValLocal = None
+		if readSQL:
+			sensorValRemote = readFromDB(db, selectTable, printSQL=debug)
+			if sensorValRemote:
+				print "here"
+				clearTable(db, selectTable)
+				if calcAmp:
+					#calc = calcAmplitudes(1, sensorValRemote, sensorPos, speakerPos, tunnelLength, sensorAngle, firstSensorIdeal, lastSensorIdeal, mirror = True, printAmp = False)
+					calc = calcAmplitudes(1, sensorValRemote, rSensorPos, speakerPos, tunnelLength, rSensorAngle, firstSensorIdeal, lastSensorIdeal, mirror=False, printAmp=debug)
+					ampValRemote = calc[0]
+					peoplePosRemote = calc[1]
+					if sendLED:
+						calcLed = calcAmplitudes(4, sensorValRemote, rSensorPos, sensorPos, tunnelLength, rSensorAngle, firstSensorIdeal, lastSensorIdeal, mirror=False, printAmp=debug)
+						ampValRemoteLed = calcLed[0]
+					if udp and udp2:
+						if detectPresence(ampValRemote, 1):
+							remotePresence = True
+							pdMode = 1
+							setPdMode(1, udp2) # RemoteFootSteps
+							prox = calcProximity(peoplePosLocal, peoplePosRemote, tunnelLength)
+							if prox:
+								sendToPd(ampValRemote + [prox], udp)
+							else:
+								sendToPd(ampValRemote + [0], udp)
+							if ampValRemoteLed:
+								writeSerial(ampValRemoteLed, ser)
 						else:
-							sendToPd(ampValRemote + [0], udp)
-						if ampValRemoteLed:
-							writeSerial(ampValRemoteLed, ser)
-					else:
-						remotePresence = False
-	Timer(sqlInterval/1000.0, sqlTimer).start()
+							remotePresence = False
+	#Timer(sqlInterval/1000.0, sqlTimer).start()
 
 def panTimer():
 	global pdMode, ser, ledFlag
@@ -226,6 +228,8 @@ def main(argv):
 		if udp and udp2 and pan:
 			Timer(1, panTimer).start()
 
+	while True:
+		sqlTimer()
 
 if __name__ == "__main__":
 	main(sys.argv[1:])

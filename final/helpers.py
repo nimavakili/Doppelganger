@@ -4,7 +4,7 @@ import MySQLdb, serial, serial.tools.list_ports, socket, time, math, copy
 #printSQL = False
 #printAmp = False
 
-#TIMER = [0, 0, 0]
+TIMER = [0, 0, 0]
 EOL = ";\n"
 
 preSensorAdjVal = [None]*5
@@ -351,13 +351,13 @@ def setPdMode(_mode, udp):
 		udp.send(msg.strip() + EOL) # make it FUDI
 
 # interval > milliseconds
-"""def timer(interval, _timer):
+def timer(interval, _timer):
 	global TIMER
 	now = time.time()
 	if now > TIMER[_timer] + interval/1000.0:
 		TIMER[_timer] = now
 		return True
-	return False"""
+	return False
 
 def panSpeakers(speakerPos, tunnelLength, sharpness):
 	global angle

@@ -52,8 +52,8 @@ void loop() {
         int sensorAve = sensorTot/numReadings;
         //Serial.print(j + 1);
         //Serial.print(": ");
-        if ((sensorAve < maxThreshold && j != 10) || (sensorAve < 140)) {
-          ledVal[j] = int((constrain(int(map(180-sensorAve, 15, 180, 0, 255)), 0, 255) + 9*ledVal[j])/10.0f);
+        if ((sensorAve < maxThreshold && j != 10) || (sensorAve < 120)) {
+          ledVal[j] = int((constrain(int(map(maxThreshold-sensorAve, 15, maxThreshold, 0, 255)), 0, 255) + 9*ledVal[j])/10.0f);
           lastVal[j] = millis();
           Serial.print(sensorAve);
         }

@@ -5,14 +5,14 @@ AARHUS = 1
 
 side = BUFFALO ##
 
-aarhusSensors = [188, 297, 391, 485, 586, 688, 783, 883, 977, 1071, 1181, 1282] ## cm
-aarhusSpeakers = [0, 130, 260, 390, 520, 650, 780, 910, 1040, 1170, 1300, 1430] ## cm
+aarhusSpeakers = [0+65, 130+65, 260+65, 390+65, 520+65, 650+65, 780+65, 910+65, 1040+65, 1170+65, 1300+65, 1430+65] ## cm
+aarhusSensors = [188+65, 297+65, 391+65, 485+65, 586+65, 688+65, 783+65, 883+65, 977+65, 1071+65, 1181+65, 1282+65] ## cm
 aarhusTunnelLength = 1430 ## cm
 aarhusSensorAngle = 45 #
 
 buffaloSpeakers = [45, 137, 228, 320, 411, 502, 594, 686, 777, 869, 960, 1052, 1143, 1234] # cm
-buffaloSensors = [107, 213, 320, 426, 533, 640, 747, 853, 960, 1067, 1173, 1280] # inch
-buffaloTunnelLength = 1280 # inch
+buffaloSensors = [107, 213, 320, 426, 533, 640, 747, 853, 960, 1067, 1173, 1280] # cm
+buffaloTunnelLength = 1280 # cm
 buffaloSensorAngle = 43
 
 ############
@@ -35,7 +35,6 @@ if (side):
 	host = "arpl-13.ap.buffalo.edu"
 	insertTable = "aarhus"
 	selectTable = "buffalo"
-	inch = False
 	tunnelLength = aarhusTunnelLength
 	sensorPos = aarhusSensors
 	sensorAngle = aarhusSensorAngle
@@ -44,11 +43,12 @@ if (side):
 	rSensorPos = buffaloSensors
 	rSensorAngle = buffaloSensorAngle
 	rSpeakerPos = buffaloSpeakers
+	firstSensorIdeal = speakerPos[0] + 100
+	lastSensorIdeal = speakerPos[-1] + 50
 else:
 	host = "localhost"
 	insertTable = "buffalo"
-	selectTable = "aarhus"
-	inch = False
+	selectTable = "buffalo"
 	tunnelLength = buffaloTunnelLength
 	sensorPos = buffaloSensors
 	sensorAngle = buffaloSensorAngle
@@ -57,6 +57,8 @@ else:
 	rSensorPos = aarhusSensors
 	rSensorAngle = aarhusSensorAngle
 	rSpeakerPos = aarhusSpeakers
+	firstSensorIdeal = sensorPos[0]
+	lastSensorIdeal = sensorPos[-1]
 
 serialInterval = 100 # milliseconds
 sqlInterval = 200 # milliseconds
@@ -70,11 +72,13 @@ db = None
 ampValPan = None
 sensorValLocal = None
 sensorValRemote = None
+peoplePosLocal = None
+peoplePosRemote = None
 ampValLocal = None
 ampValRemote = None
 
 if readSen:
-	ser = connectSerial(serialPort, serialBaudrate, min(serialInterval, panInterval)/1000.0)
+	ser = connectSerial(serialPort, serialBaudrate, 1) # min(serialInterval, panInterval)/1000.0)
 
 if sendUDP:
 	udp = connectUDP(pdSocket)
@@ -83,33 +87,51 @@ if sendUDP:
 
 if readSQL or sendSQL:
 	db = connectSQL(host, sqlPort)
+	if db:
+		clearTable(db, insertTable)
+		clearTable(db, selectTable)
+A = True
 
-while True:
+while A:
 	try:
 		if ser:
 			#if timer(serialInterval, 0):
-			sensorValLocal = readSerial(ser)
-			if sensorValLocal:
-				ampValLocal = calcAmplitudes(sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
-				if pdMode == 2:
-					sendToPd(ampValLocal, udp, mirror = False)
+			temp = readSerial(ser)
+			if temp:
+				sensorValLocal = temp
+				calc0 = calcAmplitudes(0, sensorValLocal, sensorPos, speakerPos, tunnelLength, sensorAngle, firstSensorIdeal, lastSensorIdeal, mirror = False, printAmp = False)
+				ampValLocal = calc0[0]
+				peoplePosLocal = calc0[1]
+				if pdMode == 2 and sendUDP:
+					ampValLocal.append(0)
+					sendToPd(ampValLocal, udp)
 		if db:
 			if timer(sqlInterval, 1):
 				if sendSQL and sensorValLocal:
 					sendToDB(db, insertTable, sensorValLocal)
+					sensorValLocal = None
 				if readSQL:
 					sensorValRemote = readFromDB(db, selectTable)
 					if sensorValRemote:
 						clearTable(db, selectTable)
 					if calcAmp and sensorValRemote:
-						ampValRemote = calcAmplitudes(sensorValRemote, sensorPos, speakerPos, tunnelLength, sensorAngle, inch)
+						calc1 = calcAmplitudes(1, sensorValRemote, sensorPos, speakerPos, tunnelLength, sensorAngle, firstSensorIdeal, lastSensorIdeal, mirror = True, printAmp = False)
+						#calc1 = calcAmplitudes(1, sensorValRemote, rSensorPos, speakerPos, tunnelLength, rSensorAngle, firstSensorIdeal, lastSensorIdeal, mirror=True, printAmp = False)
+						ampValRemote = calc1[0]
+						peoplePosRemote = calc1[1]
 						if sendUDP:
-							if detectPresence(ampValRemote):
+							if detectPresence(ampValRemote, 0):
+								prox = calcProximity(peoplePosLocal, peoplePosRemote, tunnelLength)
+								if prox:
+									print prox
+									ampValRemote.append(prox)
+								else:
+									ampValRemote.append(0)
 								pdMode = 1
 								setPdMode(1, udp2) # RemoteFootSteps
 								sendToPd(ampValRemote, udp)
 							else:
-								if detectPresence(ampValLocal):
+								if detectPresence(ampValLocal, 1):
 									pdMode = 2
 									setPdMode(2, udp2) # LocalFootSteps
 									#sendToPd(ampValLocal, udp)
@@ -130,6 +152,7 @@ while True:
 			if timer(panInterval, 2):
 				ampValPan = panSpeakers(speakerPos, tunnelLength, 6)
 				if sendUDP and pdMode == 3:
+					ampValPan.append(0)
 					sendToPd(ampValPan, udp)
 	except (KeyboardInterrupt, SystemExit):
 		print "\nclosing connections..."

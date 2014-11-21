@@ -109,7 +109,7 @@ def serialTimer():
 				if detectPresence(ampValLocal, 0):
 					localPresence = True
 					pdMode = 2
-					setPdMode(2, udp2) # LocalFootSteps (Follow)
+					setPdMode(2, udp2) # LocalFootSteps (Follow/Mirror)
 					prox = calcProximity(peoplePosLocal, peoplePosLocalMirror, tunnelLength)
 					if mirror:
 						sendToPd(ampValLocalMirror + [prox], udp)
@@ -158,7 +158,7 @@ def panTimer():
 	global pdMode, ser, ledFlag
 	if not remotePresence and not localPresence:
 		pdMode = 3
-		setPdMode(3, udp2) # LocalSoundRoute (SoundFlower)
+		setPdMode(3, udp2) # LocalSoundRoute (Panning/SoundFlower)
 		ampValPan = panSpeakers(speakerPos, tunnelLength, 6)
 		sendToPd(ampValPan + [0], udp)
 		if ser and sendLED and ledFlag:

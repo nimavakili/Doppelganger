@@ -346,7 +346,7 @@ def setPdMode(_mode, udp):
 			print "PD mode changed to 'Local FootSteps (Follow/Mirror)'"
 			msg = "0 1 0"
 		elif mode == 3:
-			print "PD mode changed to 'Local SoundRoute (Panning)'"
+			print "PD mode changed to 'Local SoundRoute (Panning/SoundFlower)'"
 			msg = "0 0 1"
 		udp.send(msg.strip() + EOL) # make it FUDI
 
